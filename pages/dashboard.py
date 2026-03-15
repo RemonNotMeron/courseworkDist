@@ -15,6 +15,11 @@ def get_user_icon():
 def dashboard_page():
     inject_styles()
     
+    # Apply background image if set
+    bg_css = auth.get_bg_css()
+    if bg_css:
+        ui.add_head_html(f'<style>{bg_css}</style>')
+    
     if not auth.is_authenticated():
         ui.navigate.to('/')
         return
@@ -296,8 +301,8 @@ def show_user_dashboard():
     """Show normal user dashboard - compact layout"""
     inject_styles()
     
-    # Header
-    with ui.card().classes('w-full max-w-5xl mx-auto surface-blue mb-4'):
+    # Header - white like other tiles
+    with ui.card().classes('w-full max-w-5xl mx-auto mb-4'):
         with ui.row().classes('items-center w-full px-3 py-2'):
             with ui.avatar(size='lg', color='primary'):
                 ui.label(get_user_icon()).classes('text-2xl')
@@ -310,8 +315,6 @@ def show_user_dashboard():
                         .classes('opacity-70 text-sm font-medium text-grey-7')
                     clock = ui.label('').classes('text-2xl font-light text-grey-8 dark:text-grey-2')
                     ui.timer(1.0, lambda: clock.set_text(datetime.now().strftime('%H:%M')))
-                ui.button(icon='settings', on_click=lambda: ui.navigate.to('/preference_settings')) \
-                    .props('flat round').classes('text-grey-5')
 
     # Due today section
     with ui.card().classes('w-full max-w-5xl mx-auto p-4 mb-4'):

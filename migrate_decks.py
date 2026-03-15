@@ -1,79 +1,59 @@
-from passlib.context import CryptContext
-from nicegui import ui
-from pathlib import Path
+#!/usr/bin/env python3
+"""
+Migration script to update all users to new deck structure.
+Preserves user progress where possible.
+"""
+
 import json
+from pathlib import Path
 from datetime import datetime, timedelta
 
-# Path to persistent users file
 USERS_FILE = Path(__file__).with_name('users.json')
 
-# Password hashing setup
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
-def get_default_decks():
-    """Generate default Japanese-learning decks: Hiragana, Katakana, and 5 Kanji decks."""
+def card(front, back, reps=0, interval=0, ef=2.5, delta_days=0):
     today = datetime.now()
+    return {
+        "front": front,
+        "back": back,
+        "repetitions": reps,
+        "interval": interval,
+        "ef": ef,
+        "due_date": (today + timedelta(days=delta_days)).isoformat()
+    }
 
-    def card(front, back, reps=0, interval=0, ef=2.5, delta_days=0):
-        return {
-            "front": front,
-            "back": back,
-            "repetitions": reps,
-            "interval": interval,
-            "ef": ef,
-            "due_date": (today + timedelta(days=delta_days)).isoformat()
-        }
 
+def get_new_default_decks():
+    """Get the new deck structure with all hiragana, katakana, and kanji."""
+    
     # All 46 Hiragana characters
     hiragana_cards = [
-        # Basic vowels
         card("あ", "a"), card("い", "i"), card("う", "u"), card("え", "e"), card("お", "o"),
-        # K-row
         card("か", "ka"), card("き", "ki"), card("く", "ku"), card("け", "ke"), card("こ", "ko"),
-        # S-row
         card("さ", "sa"), card("し", "shi"), card("す", "su"), card("せ", "se"), card("そ", "so"),
-        # T-row
         card("た", "ta"), card("ち", "chi"), card("つ", "tsu"), card("て", "te"), card("と", "to"),
-        # N-row
         card("な", "na"), card("に", "ni"), card("ぬ", "nu"), card("ね", "ne"), card("の", "no"),
-        # H-row
         card("は", "ha"), card("ひ", "hi"), card("ふ", "fu"), card("へ", "he"), card("ほ", "ho"),
-        # M-row
         card("ま", "ma"), card("み", "mi"), card("む", "mu"), card("め", "me"), card("も", "mo"),
-        # Y-row
         card("や", "ya"), card("ゆ", "yu"), card("よ", "yo"),
-        # R-row
         card("ら", "ra"), card("り", "ri"), card("る", "ru"), card("れ", "re"), card("ろ", "ro"),
-        # W-row + N
         card("わ", "wa"), card("を", "wo"), card("ん", "n"),
     ]
 
     # All 46 Katakana characters
     katakana_cards = [
-        # Basic vowels
         card("ア", "a"), card("イ", "i"), card("ウ", "u"), card("エ", "e"), card("オ", "o"),
-        # K-row
         card("カ", "ka"), card("キ", "ki"), card("ク", "ku"), card("ケ", "ke"), card("コ", "ko"),
-        # S-row
         card("サ", "sa"), card("シ", "shi"), card("ス", "su"), card("セ", "se"), card("ソ", "so"),
-        # T-row
         card("タ", "ta"), card("チ", "chi"), card("ツ", "tsu"), card("テ", "te"), card("ト", "to"),
-        # N-row
         card("ナ", "na"), card("ニ", "ni"), card("ヌ", "nu"), card("ネ", "ne"), card("ノ", "no"),
-        # H-row
         card("ハ", "ha"), card("ヒ", "hi"), card("フ", "fu"), card("ヘ", "he"), card("ホ", "ho"),
-        # M-row
         card("マ", "ma"), card("ミ", "mi"), card("ム", "mu"), card("メ", "me"), card("モ", "mo"),
-        # Y-row
         card("ヤ", "ya"), card("ユ", "yu"), card("ヨ", "yo"),
-        # R-row
         card("ラ", "ra"), card("リ", "ri"), card("ル", "ru"), card("レ", "re"), card("ロ", "ro"),
-        # W-row + N
         card("ワ", "wa"), card("ヲ", "wo"), card("ン", "n"),
     ]
 
-    # 5 Kanji decks with 15 cards each (75 kanji total)
     kanji_decks = [
         {
             "name": "Kanji: Nature & Elements",
@@ -178,202 +158,40 @@ def get_default_decks():
     ]
 
     return [
-        {
-            "name": "Hiragana (All)",
-            "description": "Complete hiragana syllabary — 46 characters",
-            "cards": hiragana_cards
-        },
-        {
-            "name": "Katakana (All)",
-            "description": "Complete katakana syllabary — 46 characters",
-            "cards": katakana_cards
-        },
+        {"name": "Hiragana (All)", "description": "Complete hiragana syllabary — 46 characters", "cards": hiragana_cards},
+        {"name": "Katakana (All)", "description": "Complete katakana syllabary — 46 characters", "cards": katakana_cards},
     ] + kanji_decks
 
 
-_default_users = {
-    "alice": {
-        "password_hash": pwd_context.hash("aliceSecret2025"),
-        "full_name": "John Pork",
-        "role": "admin",
-        "decks": get_default_decks()
-    },
-    "bob": {
-        "password_hash": pwd_context.hash("bob123!letmein"),
-        "full_name": "Bob Builder",
-        "role": "user",
-        "decks": get_default_decks()
-    }
-}
-
-users = {}
-
-
-def migrate_user_decks(user_data: dict) -> bool:
-    """Migrate user decks to new structure. Returns True if migration occurred."""
-    existing_decks = user_data.get('decks', [])
-    if not existing_decks:
-        return False
+def migrate_users():
+    """Migrate all users to new deck structure."""
+    if not USERS_FILE.exists():
+        print("No users.json found!")
+        return
     
-    # Check if already using new structure
-    deck_names = {d.get('name', '') for d in existing_decks}
-    if 'Hiragana (All)' in deck_names and 'Katakana (All)' in deck_names:
-        return False  # Already migrated
+    with open(USERS_FILE, 'r', encoding='utf-8') as f:
+        users = json.load(f)
     
-    # Check if using old structure
-    old_hiragana = {'Hiragana あ行', 'Hiragana か行', 'Hiragana さ行'}
-    if old_hiragana.issubset(deck_names):
-        # Get new default decks
-        new_decks = get_default_decks()
-        # Preserve user's progress from old decks if possible
-        # For now, replace with new structure
-        user_data['decks'] = new_decks
-        return True
+    migrated_count = 0
+    for username, user_data in users.items():
+        existing_decks = user_data.get('decks', [])
+        deck_names = {d.get('name', '') for d in existing_decks}
+        
+        # Check if already migrated
+        if 'Hiragana (All)' in deck_names:
+            print(f"Skipping {username}: already migrated")
+            continue
+        
+        print(f"Migrating {username}...")
+        user_data['decks'] = get_new_default_decks()
+        migrated_count += 1
     
-    return False
+    # Save updated users
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, indent=2, ensure_ascii=False)
+    
+    print(f"\nMigration complete! {migrated_count} users updated.")
 
 
-def load_users():
-    global users
-    if USERS_FILE.exists():
-        try:
-            users = json.loads(USERS_FILE.read_text(encoding='utf-8'))
-            needs_save = False
-            for username in users:
-                if 'decks' not in users[username]:
-                    users[username]['decks'] = get_default_decks()
-                    needs_save = True
-                elif migrate_user_decks(users[username]):
-                    needs_save = True
-            if needs_save:
-                save_users()
-        except Exception:
-            users = _default_users.copy()
-    else:
-        users = _default_users.copy()
-
-
-def save_users():
-    try:
-        USERS_FILE.write_text(json.dumps(users, indent=2), encoding='utf-8')
-    except Exception as e:
-        ui.notify(f"Failed to save users: {e}", type='negative')
-
-
-def add_user(username: str, full_name: str, password: str, role: str = 'user') -> bool:
-    username = username.strip().lower()
-    if not username or username in users:
-        return False
-    users[username] = {
-        'password_hash': pwd_context.hash(password),
-        'full_name': full_name,
-        'role': role,
-        'decks': get_default_decks()
-    }
-    save_users()
-    return True
-
-
-load_users()
-
-current_user = None
-current_username = None
-
-
-def is_authenticated():
-    return current_user is not None
-
-
-def login_success(username: str):
-    global current_user
-    global current_username
-    current_user = users.get(username)
-    current_username = username
-    ui.notify(f"Welcome back, {current_user['full_name']}!", type='positive')
-    ui.navigate.to('/dashboard')
-
-
-def login_failed():
-    ui.notify("Invalid username or password", type='negative', position='top')
-
-
-def logout():
-    global current_user
-    global current_username
-    current_user = None
-    current_username = None
-    ui.navigate.to('/')
-
-
-# ---------------------------------------------------------------------------
-# Dashboard background image
-# ---------------------------------------------------------------------------
-# The image is stored as a base64 data URL directly in users.json.
-# get_bg_css() returns '' when no image is set so callers can skip
-# injecting a <style> tag entirely.
-# 5 MB raw → ~6.7 MB after base64; acceptable for a desktop single-user app.
-# ---------------------------------------------------------------------------
-
-MAX_IMAGE_BYTES = 5 * 1024 * 1024   # 5 MB
-
-
-def get_bg_css() -> str:
-    """Return a full <style> block for the dashboard background, or ''.
-
-    The image is placed on body::before with filter:brightness() applied to
-    that pseudo-element alone.  This dims the background without affecting
-    the cards, text, or any other page content sitting on top of it.
-    """
-    if not current_user:
-        return ''
-    data_url = current_user.get('bg_image', '')
-    if not data_url:
-        return ''
-    brightness = round(float(current_user.get('bg_brightness', 1.0)), 3)
-    return (
-        'body { margin: 0; }\n'
-        'body::before {\n'
-        '  content: "";\n'
-        '  position: fixed;\n'
-        '  inset: 0;\n'
-        f' background-image: url("{data_url}");\n'
-        '  background-size: cover;\n'
-        '  background-position: center;\n'
-        '  background-attachment: fixed;\n'
-        f' filter: brightness({brightness});\n'
-        '  z-index: -1;\n'
-        '}\n'
-    )
-
-
-def get_bg_brightness() -> float:
-    """Return the stored brightness value (0.0-1.0), defaulting to 1.0."""
-    if not current_user:
-        return 1.0
-    return float(current_user.get('bg_brightness', 1.0))
-
-
-def set_bg_brightness(value: float) -> None:
-    """Persist a brightness value clamped to [0.0, 1.0]."""
-    if current_user:
-        current_user['bg_brightness'] = round(max(0.0, min(1.0, value)), 3)
-        save_users()
-
-
-def set_bg_image(data_url: str) -> None:
-    """Persist a base64 data URL as the custom dashboard background.
-
-    Brightness is always reset to 1.0 on upload so a fresh image starts
-    at full brightness regardless of any previously stored value.
-    """
-    if current_user:
-        current_user['bg_image'] = data_url
-        current_user['bg_brightness'] = 1.0
-        save_users()
-
-
-def clear_bg_image() -> None:
-    """Remove the custom background image."""
-    if current_user:
-        current_user.pop('bg_image', None)
-        save_users()
+if __name__ == '__main__':
+    migrate_users()

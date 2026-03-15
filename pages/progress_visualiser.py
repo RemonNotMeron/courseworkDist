@@ -138,18 +138,17 @@ def create_mastery_graph():
         x=dates,
         y=mastered_count,
         mode='lines+markers',
-        name='Cumulative Mastered Cards',
+        name='Cumulative Mastered',
         line=dict(color='#10b981', width=3),
         marker=dict(size=6)
     ))
     fig.update_layout(
-        title='Cards Mastered Over Last 30 Days',
         xaxis_title='Date',
-        yaxis_title='Cumulative Cards Mastered',
+        yaxis_title='Cards Mastered',
         hovermode='x unified',
         plot_bgcolor='#f9fafb',
-        height=350,
-        margin=dict(l=50, r=50, t=50, b=50)
+        height=320,
+        margin=dict(l=40, r=20, t=30, b=40)
     )
     return fig
 
@@ -166,9 +165,10 @@ def create_state_breakdown_graph():
         hoverinfo='label+value+percent'
     )])
     fig.update_layout(
-        title='Card States Breakdown',
-        height=350,
-        margin=dict(l=50, r=50, t=50, b=50)
+        height=288,
+        margin=dict(l=20, r=20, t=30, b=20),
+        showlegend=True,
+        legend=dict(orientation='h', yanchor='bottom', y=-0.1)
     )
     return fig
 
@@ -192,35 +192,45 @@ def progress_visualiser():
 
     stats = calculate_card_stats(user)
 
-    # Stats grid - compact
-    with ui.element('div').style('display:grid; grid-template-columns:repeat(4,1fr); gap:16px; width:100%; margin-bottom:16px;'):
-        for label, value, surface, col in [
-            ('Study Hours', f"{stats['study_hours']}h", 'surface-indigo', 'text-indigo-600'),
-            ('Total Cards', stats['total_cards'], 'surface-purple', 'text-purple-600'),
-            ('Mastered', stats['mastered_cards'], 'surface-green', 'text-emerald-600'),
-            ('Due Today', stats['due_today'], 'surface-orange', 'text-orange-600'),
-        ]:
-            with ui.card().classes(f'stat-chip p-4 text-center {surface}'):
-                ui.label(str(value)).classes(f'text-2xl font-bold {col}')
-                ui.label(label).classes('micro-label mt-1')
+    # Tabs
+    with ui.tabs().classes('w-full') as tabs:
+        overview_tab = ui.tab('Overview', icon='dashboard')
+        charts_tab = ui.tab('Charts', icon='insert_chart')
 
-    # Secondary stats
-    with ui.element('div').style('display:grid; grid-template-columns:repeat(3,1fr); gap:16px; width:100%; margin-bottom:20px;'):
-        for label, value, surface, col in [
-            ('New Cards', stats['new_cards'], 'surface-blue', 'text-blue-600'),
-            ('Learning', stats['learning_cards'], 'surface-orange', 'text-amber-600'),
-            ('Total Reviews', stats['total_reviews'], 'surface-indigo', 'text-indigo-600'),
-        ]:
-            with ui.card().classes(f'stat-chip p-3 text-center {surface}'):
-                ui.label(str(value)).classes(f'text-xl font-bold {col}')
-                ui.label(label).classes('micro-label mt-1')
+    with ui.tab_panels(tabs, value=overview_tab).classes('w-full'):
+        
+        # Overview Tab - Bigger stats tiles
+        with ui.tab_panel(overview_tab):
+            # Main stats - bigger
+            with ui.element('div').style('display:grid; grid-template-columns:repeat(4,1fr); gap:20px; width:100%; margin-bottom:20px;'):
+                for label, value, surface, col in [
+                    ('Study Hours', f"{stats['study_hours']}h", 'surface-indigo', 'text-indigo-600'),
+                    ('Total Cards', stats['total_cards'], 'surface-purple', 'text-purple-600'),
+                    ('Mastered', stats['mastered_cards'], 'surface-green', 'text-emerald-600'),
+                    ('Due Today', stats['due_today'], 'surface-orange', 'text-orange-600'),
+                ]:
+                    with ui.card().classes(f'stat-chip p-6 text-center {surface}'):
+                        ui.label(str(value)).classes(f'text-4xl font-bold {col}')
+                        ui.label(label).classes('micro-label mt-2')
 
-    # Graphs
-    with ui.row().classes('w-full gap-4'):
-        with ui.card().classes('flex-1 p-4'):
-            ui.label('Cards Mastered Over Time').classes('micro-label mb-3')
-            ui.plotly(create_mastery_graph()).classes('w-full')
+            # Secondary stats - bigger too
+            with ui.element('div').style('display:grid; grid-template-columns:repeat(3,1fr); gap:20px; width:100%;'):
+                for label, value, surface, col in [
+                    ('New Cards', stats['new_cards'], 'surface-blue', 'text-blue-600'),
+                    ('Learning', stats['learning_cards'], 'surface-orange', 'text-amber-600'),
+                    ('Total Reviews', stats['total_reviews'], 'surface-indigo', 'text-indigo-600'),
+                ]:
+                    with ui.card().classes(f'stat-chip p-5 text-center {surface}'):
+                        ui.label(str(value)).classes(f'text-3xl font-bold {col}')
+                        ui.label(label).classes('micro-label mt-2')
 
-        with ui.card().classes('flex-1 p-4'):
-            ui.label('Card States Distribution').classes('micro-label mb-3')
-            ui.plotly(create_state_breakdown_graph()).classes('w-full')
+        # Charts Tab - Side by side, no scroll
+        with ui.tab_panel(charts_tab):
+            with ui.element('div').style('display:grid; grid-template-columns:repeat(2,1fr); gap:20px; width:100%;'):
+                with ui.card().classes('p-4'):
+                    ui.label('Cards Mastered Over Time').classes('micro-label mb-3')
+                    ui.plotly(create_mastery_graph()).classes('w-full')
+
+                with ui.card().classes('p-4'):
+                    ui.label('Card States Distribution').classes('micro-label mb-3')
+                    ui.plotly(create_state_breakdown_graph()).classes('w-full')
